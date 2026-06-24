@@ -13,3 +13,4 @@
 .gradle/
 .cxx/
 .DS_Store
+/.idea/

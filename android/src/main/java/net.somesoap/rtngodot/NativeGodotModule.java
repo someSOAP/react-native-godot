@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  RTNGodotViewManager.java                                              */
+/*  NativeGodotModule.java                                                */
 /**************************************************************************/
 /* Copyright (c) 2024-2025 Slay GmbH                                      */
 /*                                                                        */
@@ -23,51 +23,42 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-package com.rtngodot;
+package net.somesoap.rtngodot;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
 
+import java.util.Objects;
+
+import com.facebook.jni.HybridData;
+import com.facebook.proguard.annotations.DoNotStrip;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.common.annotations.FrameworkAPI;
 import com.facebook.react.module.annotations.ReactModule;
-import com.facebook.react.uimanager.SimpleViewManager;
-import com.facebook.react.uimanager.ThemedReactContext;
-import com.facebook.react.uimanager.ViewManagerDelegate;
-import com.facebook.react.uimanager.annotations.ReactProp;
-import com.facebook.react.viewmanagers.RTNGodotViewManagerDelegate;
-import com.facebook.react.viewmanagers.RTNGodotViewManagerInterface;
+import com.facebook.react.turbomodule.core.CallInvokerHolderImpl;
+import com.migeran.NativeGodotModuleSpec;
 
-@ReactModule(name = RTNGodotViewManager.NAME)
-public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> implements RTNGodotViewManagerInterface<RTNGodotView> {
-	private final RTNGodotViewManagerDelegate<RTNGodotView, RTNGodotViewManager> mDelegate;
+@OptIn(markerClass = FrameworkAPI.class)
+@ReactModule(name = NativeGodotModule.NAME)
+public class NativeGodotModule extends NativeGodotModuleSpec {
+	public static final String NAME = "NativeGodotModule";
 
-	static final String NAME = "RTNGodotView";
+	@DoNotStrip
+	@SuppressWarnings("unused")
+	private final HybridData mHybridData;
 
-	public RTNGodotViewManager(ReactApplicationContext context) {
-		mDelegate = new RTNGodotViewManagerDelegate<>(this);
+	public NativeGodotModule(ReactApplicationContext context) {
+		super(context);
+		CallInvokerHolderImpl holder =
+				(CallInvokerHolderImpl)context.getCatalystInstance().getJSCallInvokerHolder();
+		mHybridData = initHybrid(
+				Objects.requireNonNull(context.getJavaScriptContextHolder()).get(),
+				holder);
 	}
 
-	@Nullable
+	private native HybridData initHybrid(long jsContext, CallInvokerHolderImpl jsCallInvokerHolder);
+
+	@ReactMethod(isBlockingSynchronousMethod = true)
 	@Override
-	protected ViewManagerDelegate<RTNGodotView> getDelegate() {
-		return mDelegate;
-	}
-
-	@NonNull
-	@Override
-	public String getName() {
-		return RTNGodotViewManager.NAME;
-	}
-
-	@NonNull
-	@Override
-	protected RTNGodotView createViewInstance(@NonNull ThemedReactContext context) {
-		return new RTNGodotView(context);
-	}
-
-	@ReactProp(name = "windowName")
-	public void setWindowName(RTNGodotView view, @Nullable String text) {
-		view.setWindowName(text);
-	}
+	public native boolean installTurboModule();
 }

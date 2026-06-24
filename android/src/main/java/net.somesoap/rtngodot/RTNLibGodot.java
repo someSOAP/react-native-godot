@@ -23,7 +23,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-package com.rtngodot;
+package net.somesoap.rtngodot;
 
 import org.godotengine.godot.Godot;
 import org.godotengine.godot.GodotHost;

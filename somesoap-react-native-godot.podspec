@@ -6,14 +6,14 @@ package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 require_relative "./prebuilt-utils.rb"
 
 Pod::Spec.new do |s|
-  s.name            = "borndotcom-react-native-godot"
+  s.name            = "somesoap-react-native-godot"
   s.version         = package["version"]
   s.summary         = package["summary"]
   s.description     = package["description"]
   s.homepage        = package["homepage"]
   s.license         = package["license"]
   s.platforms       = { :ios => "14.0" }
-  s.author          = package["author"]
+  s.author          = package["contributors"]
   s.source          = { :git => package["repository"], :tag => "#{s.version}" }
   s.frameworks = 'AVFAudio'
 
@@ -35,4 +35,5 @@ Pod::Spec.new do |s|
   s.header_mappings_dir = 'ios'
 
   install_modules_dependencies(s)
+  s.dependency 'RNWorklets'
 end

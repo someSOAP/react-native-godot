@@ -390,24 +390,24 @@ static std::map<int32_t, godot::Vector<TouchPos>> touches;
 
 extern "C" {
 
-JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_initialize(JNIEnv *env, jclass clazz, jobject p_asset_manager, jobject p_net_utils, jobject p_dir_access_handler, jobject p_file_access_handler, jobject p_godot_io, jobject p_main_surface, jint p_width, jint p_height, jobject p_godot_engine, jobject p_host_activity, jobject p_class_loader) {
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_initialize(JNIEnv *env, jclass clazz, jobject p_asset_manager, jobject p_net_utils, jobject p_dir_access_handler, jobject p_file_access_handler, jobject p_godot_io, jobject p_main_surface, jint p_width, jint p_height, jobject p_godot_engine, jobject p_host_activity, jobject p_class_loader) {
 	LibGodot::initialize(env, p_asset_manager, p_net_utils, p_dir_access_handler, p_file_access_handler, p_godot_io, p_main_surface, p_width, p_height, p_godot_engine, p_host_activity, p_class_loader);
 }
 
-JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_updateWindowNative(JNIEnv *env, jclass clazz, jstring p_name, jobject p_surface, jint p_width, jint p_height) {
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_updateWindowNative(JNIEnv *env, jclass clazz, jstring p_name, jobject p_surface, jint p_width, jint p_height) {
 	LibGodot::updateWindowNative(env, p_name, p_surface, p_width, p_height);
 }
 
-JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_removeWindowNative(JNIEnv *env, jclass clazz, jstring p_name) {
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_removeWindowNative(JNIEnv *env, jclass clazz, jstring p_name) {
 	LibGodot::removeWindowNative(env, p_name);
 }
 
-JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_cleanup(JNIEnv *env, jclass clazz) {
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_cleanup(JNIEnv *env, jclass clazz) {
 	LibGodot::cleanup(env);
 }
 
 // Called on the UI thread
-JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_dispatchMouseEvent(JNIEnv *env, jclass clazz, jstring p_name, jint p_event_type, jint p_button_mask, jfloat p_x, jfloat p_y, jfloat p_delta_x, jfloat p_delta_y, jboolean p_double_click, jboolean p_source_mouse_relative, jfloat p_pressure, jfloat p_tilt_x, jfloat p_tilt_y) {
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_dispatchMouseEvent(JNIEnv *env, jclass clazz, jstring p_name, jint p_event_type, jint p_button_mask, jfloat p_x, jfloat p_y, jfloat p_delta_x, jfloat p_delta_y, jboolean p_double_click, jboolean p_source_mouse_relative, jfloat p_pressure, jfloat p_tilt_x, jfloat p_tilt_y) {
 	// godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 	// if (!instance || !instance->is_started()) {
 	//     return;
@@ -416,7 +416,7 @@ JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_dispatchMouseEvent(JNIEnv *
 	// input_handler->process_mouse_event(p_event_type, p_button_mask, godot::Point2(p_x, p_y), godot::Vector2(p_delta_x, p_delta_y), p_double_click, p_source_mouse_relative, p_pressure, godot::Vector2(p_tilt_x, p_tilt_y));
 }
 
-JNIEXPORT jobjectArray JNICALL Java_com_rtngodot_RTNLibGodot_getRendererInfo(JNIEnv *env, jclass clazz) {
+JNIEXPORT jobjectArray JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_getRendererInfo(JNIEnv *env, jclass clazz) {
 	godot::String rendering_driver = godot::RenderingServer::get_singleton()->get_current_rendering_driver_name();
 	godot::String rendering_method = godot::RenderingServer::get_singleton()->get_current_rendering_method();
 
@@ -427,7 +427,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_rtngodot_RTNLibGodot_getRendererInfo(JNI
 	return result;
 }
 
-JNIEXPORT jstring JNICALL Java_com_rtngodot_RTNLibGodot_getGlobal(JNIEnv *env, jclass clazz, jstring path) {
+JNIEXPORT jstring JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_getGlobal(JNIEnv *env, jclass clazz, jstring path) {
 	godot::String js = jstring_to_string(path, env);
 
 	godot::Variant setting_with_override = godot::ProjectSettings::get_singleton()->get_setting_with_override(js);
@@ -436,17 +436,17 @@ JNIEXPORT jstring JNICALL Java_com_rtngodot_RTNLibGodot_getGlobal(JNIEnv *env, j
 }
 
 JNIEXPORT void JNICALL
-Java_com_rtngodot_RTNLibGodot_registerWindowUpdateCallbackNative(JNIEnv *env, jclass clazz, jstring name, jlong handle, jobject r) {
+Java_net_somesoap_rtngodot_RTNLibGodot_registerWindowUpdateCallbackNative(JNIEnv *env, jclass clazz, jstring name, jlong handle, jobject r) {
 	LibGodot::registerWindowUpdateCallbackNative(env, name, handle, r);
 }
 
 JNIEXPORT void JNICALL
-Java_com_rtngodot_RTNLibGodot_unregisterWindowUpdateCallbackNative(JNIEnv *env, jclass clazz, jlong handle) {
+Java_net_somesoap_rtngodot_RTNLibGodot_unregisterWindowUpdateCallbackNative(JNIEnv *env, jclass clazz, jlong handle) {
 	LibGodot::unregisterWindowUpdateCallbackNative(handle);
 }
 
 // Called on the UI thread
-JNIEXPORT void JNICALL Java_com_rtngodot_RTNLibGodot_dispatchTouchEvent(JNIEnv *env, jclass clazz, jstring p_name, jint p_event, jint p_pointer, jint pointer_count, jfloatArray position, jboolean p_double_tap) {
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_dispatchTouchEvent(JNIEnv *env, jclass clazz, jstring p_name, jint p_event, jint p_pointer, jint pointer_count, jfloatArray position, jboolean p_double_tap) {
 	godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 	if (!instance || !instance->is_started()) {
 		return;

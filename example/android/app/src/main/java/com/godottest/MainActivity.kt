@@ -5,7 +5,7 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import com.rtngodot.RTNLibGodot
+import net.somesoap.rtngodot.RTNLibGodot
 import org.godotengine.godot.utils.PermissionsUtil
 
 

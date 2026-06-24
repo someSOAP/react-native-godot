@@ -33,7 +33,7 @@ add_library(reactnative ALIAS ReactAndroid::reactnative)
 
 # Consume shared libraries and headers from prefabs
 
-find_package(react-native-worklets-core REQUIRED CONFIG)
+find_package(react-native-worklets REQUIRED CONFIG)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../build/generated/source/codegen/jni" generated)
 set(LIBGODOT_CPP_VERSION ${GODOT_CPP_VERSION})
@@ -54,6 +54,14 @@ add_library(rtngodot SHARED ${rtngodot_SRC} ${rtngodot_common_SRC})
 target_include_directories(rtngodot PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         "../../../../common"
+        "${REACT_NATIVE_DIR}/ReactCommon"
+        "${REACT_NATIVE_DIR}/ReactCommon/yoga"
+        "${REACT_NATIVE_DIR}/ReactAndroid/src/main/jni/react/turbomodule"
+        "${REACT_NATIVE_DIR}/ReactCommon/react/nativemodule/core/ReactCommon"
+        "${REACT_NATIVE_DIR}/ReactCommon/callinvoker"
+        "${REACT_NATIVE_DIR}/ReactCommon/runtimeexecutor"
+        "${REACT_NATIVE_DIR}/ReactCommon/jsiexecutor"
+        "${REACT_NATIVE_DIR}/ReactCommon/react/renderer/graphics/platform/cxx"
 )
 
 target_link_libraries(
@@ -61,7 +69,7 @@ target_link_libraries(
         fbjni::fbjni
         ReactAndroid::jsi
         ReactAndroid::reactnative
-        react-native-worklets-core::rnworklets
+        react-native-worklets::worklets
         react_codegen_RTNGodotSpec
 )
 
