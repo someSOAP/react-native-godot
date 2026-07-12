@@ -18,9 +18,9 @@ fi
 
 cd $GODOT_TEST_DIR
 
-yarn install
+npm install
 
-yarn download-prebuilt
+npm run download-prebuilt
 
 cd ios
 bundle install

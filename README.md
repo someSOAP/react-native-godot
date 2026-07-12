@@ -8,14 +8,16 @@ This is a fork of the original repository: [borndotcom/react-native-godot](https
 ### Installation
 
 ```bash
-yarn add @somesoap/react-native-godot
+npm install @somesoap/react-native-godot
 ```
 
-After installation, you must run the following command to download prebuilt binaries:
+After installation, run the package binary to download the prebuilt binaries:
 
 ```bash
-yarn download-prebuilt
+npx download-prebuilt
 ```
+
+In this repository (and in the example app), the equivalent command is `npm run download-prebuilt`.
 
 ### Peer Dependencies
 
@@ -26,7 +28,7 @@ This package requires the following peer dependency:
 To install `react-native-worklets` version `0.10.0`, run:
 
 ```bash
-yarn add react-native-worklets@0.10.0
+npm install react-native-worklets@0.10.0
 ```
 
 ### Transparent Godot view

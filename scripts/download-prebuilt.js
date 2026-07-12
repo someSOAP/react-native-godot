@@ -4,7 +4,7 @@
  * Script to download pre‑built Godot zip files defined in the library's package.json.
  *
  * Usage (from the example project):
- *   yarn download-prebuilt
+ *   npm run download-prebuilt
  *
  * The script:
  * 1. Reads the `prebuiltFiles` array from @borndotcom/react-native-godot's package.json.
