@@ -34,6 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface RTNGodotView : RCTViewComponentView
 
 @property NSString *windowName;
+@property BOOL transparent;
 
 @end
 

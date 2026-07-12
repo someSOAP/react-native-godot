@@ -28,3 +28,59 @@ To install `react-native-worklets` version `0.10.0`, run:
 ```bash
 yarn add react-native-worklets@0.10.0
 ```
+
+### Transparent Godot view
+
+`RTNGodotView` supports an opt-in `transparent` prop:
+
+```tsx
+<View style={{flex: 1}}>
+  <ReactNativeContent />
+
+  <RTNGodotView
+    style={StyleSheet.absoluteFill}
+    transparent
+  />
+</View>
+```
+
+When `transparent={true}`, only Godot-rendered pixels are composited over React Native. Pixels cleared with alpha `0` reveal the React Native content beneath the Godot view.
+
+The default is `false`, which preserves the normal opaque rendering path and its performance characteristics.
+
+#### Godot project setup
+
+The native prop enables alpha composition, but the Godot project must also render a transparent viewport:
+
+1. Enable **Project Settings → Display → Window → Per Pixel Transparency → Allowed**.
+
+   Equivalent project setting:
+
+   ```ini
+   [display]
+
+   window/per_pixel_transparency/allowed=true
+   ```
+
+2. Enable a transparent viewport/background in Godot:
+
+   ```gdscript
+   get_viewport().transparent_bg = true
+   ```
+
+   If the project controls the main `Window` directly, ensure its transparent-background setting is also enabled.
+
+3. Do not render an opaque background in the Godot scene:
+   - Remove or hide full-screen `ColorRect`, `TextureRect`, sprites, or background meshes.
+   - Do not use an opaque sky/environment background.
+   - Ensure the renderer clear color has alpha `0` if the project overrides it.
+
+Godot objects, particles, and UI that render with alpha remain visible normally; only untouched/transparent viewport pixels reveal React Native beneath.
+
+#### Platform notes
+
+- **Android:** transparent mode uses a translucent `SurfaceView` composition path and places Godot above the underlying React Native content.
+- **iOS:** transparent mode configures the embedded Godot render layer for alpha compositing.
+- **Input:** touch events continue to be delivered to Godot normally. Since Godot is the upper view, React Native controls beneath it are visual content only and do not receive touches through transparent pixels.
+
+No LibGodot engine fork or modification is required.

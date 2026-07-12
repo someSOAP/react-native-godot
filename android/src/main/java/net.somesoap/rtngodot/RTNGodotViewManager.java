@@ -70,4 +70,9 @@ public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> impleme
 	public void setWindowName(RTNGodotView view, @Nullable String text) {
 		view.setWindowName(text);
 	}
+
+	@ReactProp(name = "transparent", defaultBoolean = false)
+	public void setTransparent(RTNGodotView view, boolean transparent) {
+		view.setTransparent(transparent);
+	}
 }

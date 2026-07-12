@@ -25,6 +25,8 @@
 
 #import <React/RCTLog.h>
 #import <React/RCTUIManager.h>
+#import <QuartzCore/CAEAGLLayer.h>
+#import <OpenGLES/EAGLDrawable.h>
 
 #include <libgodot/libgodot.h>
 #include <godot_cpp/classes/display_server_embedded.hpp>
@@ -66,6 +68,7 @@ static UIView *_currentView = nil;
 	bool _propsUpdated;
 	bool _instanceCallbackRegistered;
 	bool _addingGodotView;
+	bool _transparent;
 }
 
 + (BOOL)shouldBeRecycled {
@@ -138,6 +141,9 @@ static UIView *_currentView = nil;
 	_instanceCallbackRegistered = false;
 	_windowName = @"";
 	_addingGodotView = false;
+	_transparent = false;
+	self.opaque = YES;
+	self.backgroundColor = UIColor.clearColor;
 }
 
 //Setter method
@@ -161,6 +167,41 @@ static UIView *_currentView = nil;
 - (NSString *)windowName {
 	NSLog(@"Returning windowName: %@", _windowName);
 	return _windowName;
+}
+
+- (void)applyTransparency {
+	self.opaque = !_transparent;
+	_renderingLayer.opaque = !_transparent;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED
+	if ([_renderingLayer isKindOfClass:[CAEAGLLayer class]]) {
+		CAEAGLLayer *eaglLayer = (CAEAGLLayer *)_renderingLayer;
+		eaglLayer.drawableProperties = @{
+			kEAGLDrawablePropertyRetainedBacking : @NO,
+			kEAGLDrawablePropertyColorFormat : kEAGLColorFormatRGBA8,
+		};
+	}
+#endif
+
+	if (_windowId == 0 || !GodotModule::get_singleton()->get_instance()) {
+		return;
+	}
+	uint64_t windowId = _windowId;
+	bool transparent = _transparent;
+	GodotModule::get_singleton()->runOnGodotThread([windowId, transparent]() {
+		godot::Object *object = godot::UtilityFunctions::instance_from_id(windowId);
+		godot::Window *window = godot::Object::cast_to<godot::Window>(object);
+		if (window) {
+			window->set_transparent_background(transparent);
+		}
+	});
+}
+
+- (void)setTransparent:(BOOL)transparent {
+	if (_transparent == transparent) {
+		return;
+	}
+	_transparent = transparent;
+	[self applyTransparency];
 }
 
 - (void)setNeedsLayout {
@@ -224,6 +265,7 @@ static UIView *_currentView = nil;
 			dispatch_async(dispatch_get_main_queue(), ^{
 				self->_windowId = newWindow->get_instance_id();
 				self->_renderingLayer = [RTNGodotView addMainLayerToGodotView:self];
+				[self applyTransparency];
 				[self setNeedsLayout];
 				self->_addingGodotView = false;
 			});
@@ -283,6 +325,7 @@ static UIView *_currentView = nil;
 				self->_windowId = newWindow->get_instance_id();
 				self->_renderingLayer = newRenderingLayer;
 				[self.layer addSublayer:self->_renderingLayer];
+				[self applyTransparency];
 				[self setNeedsLayout];
 				self->_addingGodotView = false;
 			});
@@ -592,13 +635,16 @@ static UIView *_currentView = nil;
 }
 
 - (void)updateProps:(Props::Shared const &)props oldProps:(Props::Shared const &)oldProps {
-	const auto &oldViewProps = *std::static_pointer_cast<RTNGodotViewProps const>(oldProps);
 	const auto &newViewProps = *std::static_pointer_cast<RTNGodotViewProps const>(props);
+	const auto oldViewProps = std::static_pointer_cast<RTNGodotViewProps const>(oldProps);
 
 	// Handle your props here
 	if ((oldProps == nullptr && props != nullptr) ||
-			((oldProps != nullptr && props != nullptr) && (oldViewProps.windowName != newViewProps.windowName))) {
+			(oldViewProps != nullptr && oldViewProps->windowName != newViewProps.windowName)) {
 		[self setWindowName:[NSString stringWithUTF8String:newViewProps.windowName.c_str()]];
+	}
+	if (oldViewProps == nullptr || oldViewProps->transparent != newViewProps.transparent) {
+		[self setTransparent:newViewProps.transparent];
 	}
 	//[super updateProps:props oldProps:oldProps];
 }

@@ -1,6 +1,6 @@
 {
   "name": "@somesoap/react-native-godot",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "summary": "React Native Godot",
   "description": "Embed Godot into React Native apps",
   "main": "lib/commonjs/index",

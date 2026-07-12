@@ -23,14 +23,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-import type { HostComponent, ViewProps } from "react-native";
+import type {HostComponent, ViewProps} from "react-native";
 
-import { codegenNativeComponent } from "react-native";
+import {codegenNativeComponent} from "react-native";
 
 export interface NativeProps extends ViewProps {
   windowName?: string;
+  transparent?: boolean;
 }
 
-export default codegenNativeComponent<NativeProps>(
-  "RTNGodotView"
-) as HostComponent<NativeProps>;
+export default codegenNativeComponent<NativeProps>("RTNGodotView") as HostComponent<NativeProps>;

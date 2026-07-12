@@ -382,10 +382,10 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 		return wsData;
 	}
 
-	public void updateWindow(String name, SurfaceControl control, SurfaceHolder holder, int format, int width, int height) {
+	public void updateWindow(String name, SurfaceControl control, SurfaceHolder holder, int format, int width, int height, boolean transparent) {
 		if (!"".equals(name)) {
 			// Render in the window surface directly
-			updateWindowNative(name, holder.getSurface(), width, height);
+			updateWindowNative(name, holder.getSurface(), width, height, transparent);
 			return;
 		}
 
@@ -421,7 +421,11 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 			}
 		}
 
-		updateWindowNative(name, wsData.surface, width, height);
+		updateWindowNative(name, wsData.surface, width, height, transparent);
+	}
+
+	public void setWindowTransparent(String name, boolean transparent) {
+		setWindowTransparentNative(name, transparent);
 	}
 
 	public void removeWindow(String name) {
@@ -506,7 +510,9 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 	 */
 	public native void dispatchMouseEvent(String windowName, int event, int buttonMask, float x, float y, float deltaX, float deltaY, boolean doubleClick, boolean sourceMouseRelative, float pressure, float tiltX, float tiltY);
 
-	private native void updateWindowNative(String windowName, Surface surface, int width, int height);
+	private native void updateWindowNative(String windowName, Surface surface, int width, int height, boolean transparent);
+
+	private native void setWindowTransparentNative(String windowName, boolean transparent);
 
 	private native void removeWindowNative(String windowName);
 

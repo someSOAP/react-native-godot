@@ -91,7 +91,9 @@ public:
 
 	static void cleanup(JNIEnv *env);
 
-	static void updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface, jint p_width, jint p_height);
+	static void updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface, jint p_width, jint p_height, jboolean p_transparent);
+
+	static void setWindowTransparentNative(JNIEnv *env, jstring p_name, jboolean p_transparent);
 
 	static void removeWindowNative(JNIEnv *env, jstring p_name);
 

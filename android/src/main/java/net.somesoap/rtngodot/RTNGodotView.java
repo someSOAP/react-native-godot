@@ -29,6 +29,7 @@ import org.godotengine.godot.input.GodotInputHandler;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.PixelFormat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -43,6 +44,7 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 	private static final String TAG = "RTNGodotView";
 
 	private String windowName = "";
+	private boolean transparent = false;
 
 	private GodotInputHandler mInputHandler;
 
@@ -75,6 +77,16 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 		return windowName;
 	}
 
+	public void setTransparent(boolean newTransparent) {
+		if (transparent == newTransparent) {
+			return;
+		}
+		transparent = newTransparent;
+		setZOrderOnTop(transparent);
+		getHolder().setFormat(transparent ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE);
+		RTNLibGodot.getInstance().setWindowTransparent(windowName, transparent);
+	}
+
 	@Override
 	public void surfaceRedrawNeeded(@NonNull SurfaceHolder surfaceHolder) {
 		Log.i(TAG, String.format("surfaceRedrawNeeded: %s %s", windowName, surfaceHolder.getSurface().toString()));
@@ -88,7 +100,7 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 	@Override
 	public void surfaceChanged(@NonNull SurfaceHolder surfaceHolder, int format, int width, int height) {
 		Log.i(TAG, String.format("surfaceChanged: %s %s %d %d %d", windowName, surfaceHolder.getSurface().toString(), format, width, height));
-		RTNLibGodot.getInstance().updateWindow(windowName, getSurfaceControl(), surfaceHolder, format, width, height);
+		RTNLibGodot.getInstance().updateWindow(windowName, getSurfaceControl(), surfaceHolder, format, width, height, transparent);
 	}
 
 	@Override

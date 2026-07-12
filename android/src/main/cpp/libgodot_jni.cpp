@@ -54,10 +54,11 @@ typedef struct WindowData {
 	int height;
 	int32_t id;
 	ANativeWindow *surface;
+	bool transparent;
 	WindowData() :
-			width(0), height(0), id(-1), surface(nullptr) {}
-	WindowData(ANativeWindow *p_surface, int p_width, int p_height, int32_t p_id = -1) :
-			width(p_width), height(p_height), id(p_id), surface(p_surface) {}
+			width(0), height(0), id(-1), surface(nullptr), transparent(false) {}
+	WindowData(ANativeWindow *p_surface, int p_width, int p_height, int32_t p_id = -1, bool p_transparent = false) :
+			width(p_width), height(p_height), id(p_id), surface(p_surface), transparent(p_transparent) {}
 } WindowData;
 
 static std::map<std::string, WindowData> windowMap;
@@ -146,8 +147,8 @@ JNIEnv *LibGodot::get_jni_env() {
 	return env;
 }
 
-static std::function<void()> createUpdateWindowFunc(std::string p_window_name, int p_width, int p_height, ANativeWindow *p_window_surface, bool p_change_surface) {
-	return [p_window_name, p_width, p_height, p_window_surface, p_change_surface]() {
+static std::function<void()> createUpdateWindowFunc(std::string p_window_name, int p_width, int p_height, ANativeWindow *p_window_surface, bool p_change_surface, bool p_transparent) {
+	return [p_window_name, p_width, p_height, p_window_surface, p_change_surface, p_transparent]() {
 		godot::DisplayServerEmbedded *dse = godot::DisplayServerEmbedded::get_singleton();
 		int32_t windowId = -1;
 		if (p_window_name == "") {
@@ -188,6 +189,16 @@ static std::function<void()> createUpdateWindowFunc(std::string p_window_name, i
 			}
 		}
 		if (windowId >= 0) {
+			godot::MainLoop *main_loop = godot::Engine::get_singleton()->get_main_loop();
+			godot::SceneTree *scene_tree = godot::Object::cast_to<godot::SceneTree>(main_loop);
+			godot::Window *window = windowId == 0 && scene_tree ? scene_tree->get_root() : nullptr;
+			if (!window && scene_tree) {
+				godot::Node *node = scene_tree->get_root()->find_child(godot::String::utf8(p_window_name.c_str()), true, false);
+				window = godot::Object::cast_to<godot::Window>(node);
+			}
+			if (window) {
+				window->set_transparent_background(p_transparent);
+			}
 			LOGI("Resizing Window: %d %d %d", windowId, p_width, p_height);
 			dse->resize_window(godot::Vector2i(p_width, p_height), windowId);
 			{
@@ -200,7 +211,7 @@ static std::function<void()> createUpdateWindowFunc(std::string p_window_name, i
 	};
 }
 
-void LibGodot::updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface, jint p_width, jint p_height) {
+void LibGodot::updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface, jint p_width, jint p_height, jboolean p_transparent) {
 	std::string windowName;
 	{
 		jboolean isCopy;
@@ -215,7 +226,7 @@ void LibGodot::updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface
 		std::lock_guard<std::recursive_mutex> lock(windowMapMutex);
 
 		if (!windowMap.contains(windowName)) {
-			windowMap[windowName] = WindowData(windowSurface, p_width, p_height);
+			windowMap[windowName] = WindowData(windowSurface, p_width, p_height, -1, p_transparent);
 			changeSurface = true;
 		}
 
@@ -229,10 +240,25 @@ void LibGodot::updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface
 		}
 		winData.width = p_width;
 		winData.height = p_height;
+		winData.transparent = p_transparent;
 	}
 	godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 	if (instance && instance->is_started()) {
-		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, p_width, p_height, windowSurface, changeSurface), true);
+		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, p_width, p_height, windowSurface, changeSurface, p_transparent), true);
+	}
+}
+
+void LibGodot::setWindowTransparentNative(JNIEnv *env, jstring p_name, jboolean p_transparent) {
+	std::string window_name = jstring_to_std_string(p_name, env);
+	std::lock_guard<std::recursive_mutex> lock(windowMapMutex);
+	if (!windowMap.contains(window_name)) {
+		return;
+	}
+	WindowData &data = windowMap[window_name];
+	data.transparent = p_transparent;
+	godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
+	if (instance && instance->is_started()) {
+		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(window_name, data.width, data.height, data.surface, false, data.transparent), true);
 	}
 }
 
@@ -293,7 +319,7 @@ void LibGodot::updateWindow(std::string windowName) {
 		godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 		WindowData &data = windowMap[windowName];
 		if (instance && instance->is_started()) {
-			GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, data.width, data.height, data.surface, windowName != ""));
+			GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, data.width, data.height, data.surface, windowName != "", data.transparent));
 		}
 	}
 }
@@ -307,7 +333,7 @@ void LibGodot::updateWindows() {
 			WindowData &data = item.second;
 			GodotModule::get_singleton()->runOnGodotThread(
 					createUpdateWindowFunc(windowName, data.width, data.height, data.surface,
-							windowName != ""));
+							windowName != "", data.transparent));
 		}
 	}
 }
@@ -394,8 +420,12 @@ JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_initialize(JNIEnv 
 	LibGodot::initialize(env, p_asset_manager, p_net_utils, p_dir_access_handler, p_file_access_handler, p_godot_io, p_main_surface, p_width, p_height, p_godot_engine, p_host_activity, p_class_loader);
 }
 
-JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_updateWindowNative(JNIEnv *env, jclass clazz, jstring p_name, jobject p_surface, jint p_width, jint p_height) {
-	LibGodot::updateWindowNative(env, p_name, p_surface, p_width, p_height);
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_updateWindowNative(JNIEnv *env, jclass clazz, jstring p_name, jobject p_surface, jint p_width, jint p_height, jboolean p_transparent) {
+	LibGodot::updateWindowNative(env, p_name, p_surface, p_width, p_height, p_transparent);
+}
+
+JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_setWindowTransparentNative(JNIEnv *env, jclass clazz, jstring p_name, jboolean p_transparent) {
+	LibGodot::setWindowTransparentNative(env, p_name, p_transparent);
 }
 
 JNIEXPORT void JNICALL Java_net_somesoap_rtngodot_RTNLibGodot_removeWindowNative(JNIEnv *env, jclass clazz, jstring p_name) {
