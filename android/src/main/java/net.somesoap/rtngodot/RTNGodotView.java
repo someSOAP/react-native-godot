@@ -45,6 +45,7 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 
 	private String windowName = "";
 	private boolean transparent = false;
+	private boolean godotVisible = true;
 
 	private GodotInputHandler mInputHandler;
 
@@ -87,6 +88,14 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 		RTNLibGodot.getInstance().setWindowTransparent(windowName, transparent);
 	}
 
+	public void setGodotVisible(boolean newGodotVisible) {
+		if (godotVisible == newGodotVisible) {
+			return;
+		}
+		godotVisible = newGodotVisible;
+		RTNLibGodot.getInstance().setWindowVisible(windowName, godotVisible);
+	}
+
 	@Override
 	public void surfaceRedrawNeeded(@NonNull SurfaceHolder surfaceHolder) {
 		Log.i(TAG, String.format("surfaceRedrawNeeded: %s %s", windowName, surfaceHolder.getSurface().toString()));
@@ -100,7 +109,7 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 	@Override
 	public void surfaceChanged(@NonNull SurfaceHolder surfaceHolder, int format, int width, int height) {
 		Log.i(TAG, String.format("surfaceChanged: %s %s %d %d %d", windowName, surfaceHolder.getSurface().toString(), format, width, height));
-		RTNLibGodot.getInstance().updateWindow(windowName, getSurfaceControl(), surfaceHolder, format, width, height, transparent);
+		RTNLibGodot.getInstance().updateWindow(windowName, getSurfaceControl(), surfaceHolder, format, width, height, transparent, godotVisible);
 	}
 
 	@Override

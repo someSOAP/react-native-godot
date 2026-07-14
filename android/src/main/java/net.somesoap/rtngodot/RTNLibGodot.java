@@ -344,6 +344,7 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 		public final SurfaceControl control;
 		public final Surface surface;
 		public final boolean persistent;
+		public boolean visible = true;
 		public int width;
 		public int height;
 
@@ -382,7 +383,7 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 		return wsData;
 	}
 
-	public void updateWindow(String name, SurfaceControl control, SurfaceHolder holder, int format, int width, int height, boolean transparent) {
+	public void updateWindow(String name, SurfaceControl control, SurfaceHolder holder, int format, int width, int height, boolean transparent, boolean visible) {
 		if (!"".equals(name)) {
 			// Render in the window surface directly
 			updateWindowNative(name, holder.getSurface(), width, height, transparent);
@@ -390,6 +391,7 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 		}
 
 		WindowSurfaceData wsData = getOrCreateWindowSurface(name, width, height);
+		wsData.visible = visible;
 
 		if (wsData.attachedControl == null || wsData.attachedSurface == null || !wsData.attachedControl.equals(control) || !wsData.attachedSurface.equals(holder.getSurface())) {
 			if (wsData.attachedControl != null) {
@@ -401,6 +403,7 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 				// Set new parent
 				t.reparent(wsData.control, control);
 				t.setVisibility(wsData.control, true);
+				t.setAlpha(wsData.control, wsData.visible ? 1.0f : 0.0f);
 				if (wsData.width != width || wsData.height != height) {
 					t.setBufferSize(wsData.control, width, height);
 					wsData.width = width;
@@ -422,6 +425,18 @@ public class RTNLibGodot implements IGodotLib, GodotHost, GodotRenderView {
 		}
 
 		updateWindowNative(name, wsData.surface, width, height, transparent);
+	}
+
+	public void setWindowVisible(String name, boolean visible) {
+		WindowSurfaceData wsData = windowData.get(name);
+		if (wsData == null) {
+			return;
+		}
+		wsData.visible = visible;
+		try (SurfaceControl.Transaction t = new SurfaceControl.Transaction()) {
+			t.setAlpha(wsData.control, visible ? 1.0f : 0.0f);
+			t.apply();
+		}
 	}
 
 	public void setWindowTransparent(String name, boolean transparent) {

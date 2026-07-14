@@ -69,6 +69,7 @@ static UIView *_currentView = nil;
 	bool _instanceCallbackRegistered;
 	bool _addingGodotView;
 	bool _transparent;
+	bool _visible;
 }
 
 + (BOOL)shouldBeRecycled {
@@ -142,6 +143,7 @@ static UIView *_currentView = nil;
 	_windowName = @"";
 	_addingGodotView = false;
 	_transparent = false;
+	_visible = true;
 	self.opaque = YES;
 	self.backgroundColor = UIColor.clearColor;
 }
@@ -202,6 +204,18 @@ static UIView *_currentView = nil;
 	}
 	_transparent = transparent;
 	[self applyTransparency];
+}
+
+- (void)applyVisibility {
+	_renderingLayer.hidden = !_visible;
+}
+
+- (void)setVisible:(BOOL)visible {
+	if (_visible == visible) {
+		return;
+	}
+	_visible = visible;
+	[self applyVisibility];
 }
 
 - (void)setNeedsLayout {
@@ -266,6 +280,7 @@ static UIView *_currentView = nil;
 				self->_windowId = newWindow->get_instance_id();
 				self->_renderingLayer = [RTNGodotView addMainLayerToGodotView:self];
 				[self applyTransparency];
+				[self applyVisibility];
 				[self setNeedsLayout];
 				self->_addingGodotView = false;
 			});
@@ -326,6 +341,7 @@ static UIView *_currentView = nil;
 				self->_renderingLayer = newRenderingLayer;
 				[self.layer addSublayer:self->_renderingLayer];
 				[self applyTransparency];
+				[self applyVisibility];
 				[self setNeedsLayout];
 				self->_addingGodotView = false;
 			});
@@ -645,6 +661,9 @@ static UIView *_currentView = nil;
 	}
 	if (oldViewProps == nullptr || oldViewProps->transparent != newViewProps.transparent) {
 		[self setTransparent:newViewProps.transparent];
+	}
+	if (oldViewProps == nullptr || oldViewProps->visible != newViewProps.visible) {
+		[self setVisible:newViewProps.visible];
 	}
 	//[super updateProps:props oldProps:oldProps];
 }

@@ -75,4 +75,9 @@ public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> impleme
 	public void setTransparent(RTNGodotView view, boolean transparent) {
 		view.setTransparent(transparent);
 	}
+
+	@ReactProp(name = "visible", defaultBoolean = true)
+	public void setVisible(RTNGodotView view, boolean visible) {
+		view.setGodotVisible(visible);
+	}
 }

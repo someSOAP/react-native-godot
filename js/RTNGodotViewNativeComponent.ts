@@ -30,6 +30,7 @@ import {codegenNativeComponent} from "react-native";
 export interface NativeProps extends ViewProps {
   windowName?: string;
   transparent?: boolean;
+  visible?: boolean;
 }
 
 export default codegenNativeComponent<NativeProps>("RTNGodotView") as HostComponent<NativeProps>;
