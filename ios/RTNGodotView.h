@@ -36,6 +36,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property NSString *windowName;
 @property BOOL transparent;
 @property BOOL visible;
+@property BOOL cancelTouchWhenOutside;
 
 @end
 

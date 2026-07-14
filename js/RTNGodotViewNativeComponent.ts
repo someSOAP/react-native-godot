@@ -24,13 +24,14 @@
 /**************************************************************************/
 
 import type {HostComponent, ViewProps} from "react-native";
-
 import {codegenNativeComponent} from "react-native";
+import type {WithDefault} from "react-native/Libraries/Types/CodegenTypes";
 
 export interface NativeProps extends ViewProps {
   windowName?: string;
   transparent?: boolean;
   visible?: boolean;
+  cancelTouchWhenOutside?: WithDefault<boolean, false>;
 }
 
 export default codegenNativeComponent<NativeProps>("RTNGodotView") as HostComponent<NativeProps>;

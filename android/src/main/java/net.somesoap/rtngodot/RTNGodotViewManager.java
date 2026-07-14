@@ -80,4 +80,9 @@ public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> impleme
 	public void setVisible(RTNGodotView view, boolean visible) {
 		view.setGodotVisible(visible);
 	}
+
+	@ReactProp(name = "cancelTouchWhenOutside", defaultBoolean = false)
+	public void setCancelTouchWhenOutside(RTNGodotView view, boolean cancelTouchWhenOutside) {
+		view.setCancelTouchWhenOutside(cancelTouchWhenOutside);
+	}
 }

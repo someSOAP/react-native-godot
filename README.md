@@ -79,6 +79,32 @@ The native prop enables alpha composition, but the Godot project must also rende
 
 Godot objects, particles, and UI that render with alpha remain visible normally; only untouched/transparent viewport pixels reveal React Native beneath.
 
+### Cancel touches when outside
+
+`RTNGodotView` supports a `cancelTouchWhenOutside` prop that defaults to `false`.
+
+```tsx
+<RTNGodotView
+  style={styles.godotView}
+  cancelTouchWhenOutside={true}
+/>
+```
+
+When `cancelTouchWhenOutside={true}`, any active touch that moves outside the bounds of the `RTNGodotView` will be automatically canceled in Godot. This prevents "stuck" touch states where Godot continues to process a drag or hold even after the finger has left the view area.
+ 
+### Visibility control
+
+`RTNGodotView` supports a `visible` prop that defaults to `true`.
+
+```tsx
+<RTNGodotView
+  style={styles.godotView}
+  visible={isVisible}
+/>
+```
+
+When `visible={false}`, the Godot render layer is hidden natively (alpha set to 0 on Android, `hidden` set to `true` on iOS). This can be used to temporarily hide Godot content while keeping the view in the React Native hierarchy. Note that this is different from React Native's `display: 'none'`, as the view still occupies space in the layout.
+
 #### Platform notes
 
 - **Android:** transparent mode uses a translucent `SurfaceView` composition path and places Godot above the underlying React Native content.

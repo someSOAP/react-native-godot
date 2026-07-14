@@ -144,6 +144,7 @@ static UIView *_currentView = nil;
 	_addingGodotView = false;
 	_transparent = false;
 	_visible = true;
+	_cancelTouchWhenOutside = false;
 	self.opaque = YES;
 	self.backgroundColor = UIColor.clearColor;
 }
@@ -534,15 +535,23 @@ static UIView *_currentView = nil;
 			continue;
 		}
 		CGPoint location = [touch locationInView:self];
-		if (!CGRectContainsPoint(_renderingLayer.frame, location)) {
+		CGPoint prevLocation = [touch previousLocationInView:self];
+		if (_cancelTouchWhenOutside && (!CGRectContainsPoint(_renderingLayer.frame, location) || !CGRectContainsPoint(_renderingLayer.frame, prevLocation))) {
+			// A touch that leaves the embedded Godot view will not receive a
+			// usable drag or release position. Explicitly cancel it so gameplay
+			// cannot remain under touch control after the finger leaves the view.
+			[self removeTouchId:touchId];
+			GodotModule::get_singleton()->runOnGodotThread([=]() {
+				if (godot::UtilityFunctions::is_instance_id_valid(_windowId)) {
+					godot::Object *obj = godot::UtilityFunctions::instance_from_id(_windowId);
+					godot::Window *window = godot::Object::cast_to<godot::Window>(obj);
+					dse->touches_canceled(touchId, window->get_window_id());
+				}
+			});
 			continue;
 		}
 		location.x -= _renderingLayer.frame.origin.x;
 		location.y -= _renderingLayer.frame.origin.y;
-		CGPoint prevLocation = [touch previousLocationInView:self];
-		if (!CGRectContainsPoint(_renderingLayer.frame, prevLocation)) {
-			continue;
-		}
 		prevLocation.x -= _renderingLayer.frame.origin.x;
 		prevLocation.y -= _renderingLayer.frame.origin.y;
 		CGFloat alt = touch.altitudeAngle;
@@ -592,7 +601,16 @@ static UIView *_currentView = nil;
 		}
 		[self removeTouchId:touchId];
 		CGPoint location = [touch locationInView:self];
-		if (!CGRectContainsPoint(_renderingLayer.frame, location)) {
+		if (_cancelTouchWhenOutside && !CGRectContainsPoint(_renderingLayer.frame, location)) {
+			// The release occurred outside the view, so Godot must still be told
+			// that this touch no longer controls the game.
+			GodotModule::get_singleton()->runOnGodotThread([=]() {
+				if (godot::UtilityFunctions::is_instance_id_valid(_windowId)) {
+					godot::Object *obj = godot::UtilityFunctions::instance_from_id(_windowId);
+					godot::Window *window = godot::Object::cast_to<godot::Window>(obj);
+					dse->touches_canceled(touchId, window->get_window_id());
+				}
+			});
 			continue;
 		}
 		location.x -= _renderingLayer.frame.origin.x;
@@ -664,6 +682,9 @@ static UIView *_currentView = nil;
 	}
 	if (oldViewProps == nullptr || oldViewProps->visible != newViewProps.visible) {
 		[self setVisible:newViewProps.visible];
+	}
+	if (oldViewProps == nullptr || oldViewProps->cancelTouchWhenOutside != newViewProps.cancelTouchWhenOutside) {
+		[self setCancelTouchWhenOutside:newViewProps.cancelTouchWhenOutside];
 	}
 	//[super updateProps:props oldProps:oldProps];
 }

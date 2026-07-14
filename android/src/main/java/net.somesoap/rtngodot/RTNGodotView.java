@@ -46,6 +46,8 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 	private String windowName = "";
 	private boolean transparent = false;
 	private boolean godotVisible = true;
+	private boolean cancelTouchWhenOutside = false;
+	private boolean touchCanceledOutside = false;
 
 	private GodotInputHandler mInputHandler;
 
@@ -96,6 +98,10 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 		RTNLibGodot.getInstance().setWindowVisible(windowName, godotVisible);
 	}
 
+	public void setCancelTouchWhenOutside(boolean newCancelTouchWhenOutside) {
+		cancelTouchWhenOutside = newCancelTouchWhenOutside;
+	}
+
 	@Override
 	public void surfaceRedrawNeeded(@NonNull SurfaceHolder surfaceHolder) {
 		Log.i(TAG, String.format("surfaceRedrawNeeded: %s %s", windowName, surfaceHolder.getSurface().toString()));
@@ -122,7 +128,36 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		super.onTouchEvent(event);
+		int action = event.getActionMasked();
+		if (action == MotionEvent.ACTION_DOWN) {
+			touchCanceledOutside = false;
+		}
+		if (cancelTouchWhenOutside && !touchCanceledOutside && action == MotionEvent.ACTION_MOVE && isTouchOutsideView(event)) {
+			MotionEvent cancelEvent = MotionEvent.obtain(event);
+			cancelEvent.setAction(MotionEvent.ACTION_CANCEL);
+			mInputHandler.onTouchEvent(cancelEvent);
+			cancelEvent.recycle();
+			touchCanceledOutside = true;
+			return true;
+		}
+		if (touchCanceledOutside) {
+			if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+				touchCanceledOutside = false;
+			}
+			return true;
+		}
 		return mInputHandler.onTouchEvent(event);
+	}
+
+	private boolean isTouchOutsideView(MotionEvent event) {
+		for (int pointerIndex = 0; pointerIndex < event.getPointerCount(); pointerIndex++) {
+			float x = event.getX(pointerIndex);
+			float y = event.getY(pointerIndex);
+			if (x < 0 || x > getWidth() || y < 0 || y > getHeight()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
