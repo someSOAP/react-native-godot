@@ -29,25 +29,38 @@ import org.godotengine.godot.input.GodotInputHandler;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.SurfaceTexture;
 import android.graphics.PixelFormat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.ViewGroup;
+import android.view.TextureView;
+import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2 {
+import com.facebook.react.uimanager.ThemedReactContext;
+import com.facebook.react.uimanager.UIManagerHelper;
+import com.facebook.react.uimanager.events.EventDispatcher;
+
+public class RTNGodotView extends FrameLayout implements SurfaceHolder.Callback2, TextureView.SurfaceTextureListener {
 	private static final String TAG = "RTNGodotView";
 
 	private String windowName = "";
-	private boolean transparent = false;
-	private boolean godotVisible = true;
+	// Start with TextureView because React applies props after constructing the
+	// native view. Creating a temporary SurfaceView here can leave its already
+	// destroyed surface registered as Godot's default render target.
+	private boolean transparent = true;
 	private boolean cancelTouchWhenOutside = false;
 	private boolean touchCanceledOutside = false;
+	@Nullable private SurfaceView surfaceView;
+	@Nullable private TextureView textureView;
+	@Nullable private Surface textureSurface;
+	private boolean surfaceReadyEventSent = false;
 
 	private GodotInputHandler mInputHandler;
 
@@ -68,8 +81,59 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 
 	private void configureComponent() {
 		mInputHandler = RTNLibGodot.getInstance().getInputHandler();
-		setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-		getHolder().addCallback(this);
+		setRenderTarget(true);
+	}
+
+	/**
+	 * Opaque views keep the faster SurfaceView path. Transparent SurfaceViews must
+	 * be placed above the app window, which also puts them above RN overlays.
+	 * TextureView is composited with normal React Native children instead.
+	 */
+	private void setRenderTarget(boolean useTextureView) {
+		if ((useTextureView && textureView != null) || (!useTextureView && surfaceView != null)) {
+			return;
+		}
+
+		removeAllViews();
+		surfaceView = null;
+		textureView = null;
+		textureSurface = null;
+
+		LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+		if (useTextureView) {
+			TextureView target = new TextureView(getContext()) {
+				@Override
+				public boolean onTouchEvent(MotionEvent event) {
+					return RTNGodotView.this.handleTouchEvent(event);
+				}
+
+				@Override
+				public boolean onGenericMotionEvent(MotionEvent event) {
+					return mInputHandler.onGenericMotionEvent(event);
+				}
+			};
+			target.setOpaque(false);
+			target.setSurfaceTextureListener(this);
+			textureView = target;
+			addView(target, layoutParams);
+			return;
+		}
+
+		SurfaceView target = new SurfaceView(getContext()) {
+			@Override
+			public boolean onTouchEvent(MotionEvent event) {
+				return RTNGodotView.this.handleTouchEvent(event);
+			}
+
+			@Override
+			public boolean onGenericMotionEvent(MotionEvent event) {
+				return mInputHandler.onGenericMotionEvent(event);
+			}
+		};
+		target.getHolder().setFormat(PixelFormat.OPAQUE);
+		target.getHolder().addCallback(this);
+		surfaceView = target;
+		addView(target, layoutParams);
 	}
 
 	public void setWindowName(String newWindowName) {
@@ -85,17 +149,8 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 			return;
 		}
 		transparent = newTransparent;
-		setZOrderOnTop(transparent);
-		getHolder().setFormat(transparent ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE);
+		setRenderTarget(transparent);
 		RTNLibGodot.getInstance().setWindowTransparent(windowName, transparent);
-	}
-
-	public void setGodotVisible(boolean newGodotVisible) {
-		if (godotVisible == newGodotVisible) {
-			return;
-		}
-		godotVisible = newGodotVisible;
-		RTNLibGodot.getInstance().setWindowVisible(windowName, godotVisible);
 	}
 
 	public void setCancelTouchWhenOutside(boolean newCancelTouchWhenOutside) {
@@ -115,19 +170,73 @@ public class RTNGodotView extends SurfaceView implements SurfaceHolder.Callback2
 	@Override
 	public void surfaceChanged(@NonNull SurfaceHolder surfaceHolder, int format, int width, int height) {
 		Log.i(TAG, String.format("surfaceChanged: %s %s %d %d %d", windowName, surfaceHolder.getSurface().toString(), format, width, height));
-		RTNLibGodot.getInstance().updateWindow(windowName, getSurfaceControl(), surfaceHolder, format, width, height, transparent, godotVisible);
+		if (surfaceView != null) {
+			RTNLibGodot.getInstance().updateWindow(windowName, surfaceView.getSurfaceControl(), surfaceHolder, format, width, height, transparent);
+		}
 	}
 
 	@Override
 	public void surfaceDestroyed(@NonNull SurfaceHolder surfaceHolder) {
 		Log.i(TAG, String.format("surfaceRemoved: %s %s", windowName, surfaceHolder.getSurface().toString()));
-		RTNLibGodot.getInstance().removeWindow(windowName);
+		if ("".equals(windowName)) {
+			RTNLibGodot.getInstance().restoreDefaultWindowSurface();
+		} else {
+			RTNLibGodot.getInstance().removeWindow(windowName);
+		}
+	}
+
+	@Override
+	public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
+		textureSurface = new Surface(surfaceTexture);
+		RTNLibGodot.getInstance().updateTextureWindow(windowName, textureSurface, width, height, transparent);
+		post(this::emitSurfaceReady);
+	}
+
+	@Override
+	public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
+		if (textureSurface != null) {
+			RTNLibGodot.getInstance().updateTextureWindow(windowName, textureSurface, width, height, transparent);
+		}
+	}
+
+	@Override
+	public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
+		// The default Godot window is persistent, while TextureView surfaces are
+		// not. Restore the persistent surface before releasing this one so a new
+		// game can never initialize against a destroyed TextureView surface.
+		if ("".equals(windowName)) {
+			RTNLibGodot.getInstance().restoreDefaultWindowSurface();
+		} else {
+			RTNLibGodot.getInstance().removeWindow(windowName);
+		}
+		// Returning true gives TextureView ownership of releasing this surface.
+		// Releasing it here as well crashes Android's native Surface reference
+		// counter during the screen-transition teardown.
+		textureSurface = null;
+		surfaceReadyEventSent = false;
+		return true;
+	}
+
+	@Override
+	public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) {
+	}
+
+	private void emitSurfaceReady() {
+		if (surfaceReadyEventSent || textureSurface == null || !(getContext() instanceof ThemedReactContext)) {
+			return;
+		}
+		ThemedReactContext reactContext = (ThemedReactContext)getContext();
+		EventDispatcher dispatcher = UIManagerHelper.getEventDispatcherForReactTag(reactContext, getId());
+		if (dispatcher == null) {
+			return;
+		}
+		int surfaceId = UIManagerHelper.getSurfaceId(reactContext);
+		dispatcher.dispatchEvent(new SurfaceReadyEvent(surfaceId, getId()));
+		surfaceReadyEventSent = true;
 	}
 
 	@SuppressLint("ClickableViewAccessibility")
-	@Override
-	public boolean onTouchEvent(MotionEvent event) {
-		super.onTouchEvent(event);
+	private boolean handleTouchEvent(MotionEvent event) {
 		int action = event.getActionMasked();
 		if (action == MotionEvent.ACTION_DOWN) {
 			touchCanceledOutside = false;

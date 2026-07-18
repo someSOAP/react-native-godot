@@ -25,13 +25,17 @@
 
 import type {HostComponent, ViewProps} from "react-native";
 import {codegenNativeComponent} from "react-native";
-import type {WithDefault} from "react-native/Libraries/Types/CodegenTypes";
+import type {DirectEventHandler, WithDefault} from "react-native/Libraries/Types/CodegenTypes";
+
+type SurfaceReadyEvent = Readonly<{
+  ready: boolean;
+}>;
 
 export interface NativeProps extends ViewProps {
   windowName?: string;
   transparent?: boolean;
-  visible?: boolean;
   cancelTouchWhenOutside?: WithDefault<boolean, false>;
+  onSurfaceReady?: DirectEventHandler<SurfaceReadyEvent>;
 }
 
 export default codegenNativeComponent<NativeProps>("RTNGodotView") as HostComponent<NativeProps>;

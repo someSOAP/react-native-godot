@@ -30,6 +30,7 @@ import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.common.MapBuilder;
 import com.facebook.react.module.annotations.ReactModule;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -37,6 +38,8 @@ import com.facebook.react.uimanager.ViewManagerDelegate;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.facebook.react.viewmanagers.RTNGodotViewManagerDelegate;
 import com.facebook.react.viewmanagers.RTNGodotViewManagerInterface;
+
+import java.util.Map;
 
 @ReactModule(name = RTNGodotViewManager.NAME)
 public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> implements RTNGodotViewManagerInterface<RTNGodotView> {
@@ -66,6 +69,11 @@ public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> impleme
 		return new RTNGodotView(context);
 	}
 
+	@Override
+	public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
+		return MapBuilder.of(SurfaceReadyEvent.EVENT_NAME, MapBuilder.of("registrationName", "onSurfaceReady"));
+	}
+
 	@ReactProp(name = "windowName")
 	public void setWindowName(RTNGodotView view, @Nullable String text) {
 		view.setWindowName(text);
@@ -74,11 +82,6 @@ public class RTNGodotViewManager extends SimpleViewManager<RTNGodotView> impleme
 	@ReactProp(name = "transparent", defaultBoolean = false)
 	public void setTransparent(RTNGodotView view, boolean transparent) {
 		view.setTransparent(transparent);
-	}
-
-	@ReactProp(name = "visible", defaultBoolean = true)
-	public void setVisible(RTNGodotView view, boolean visible) {
-		view.setGodotVisible(visible);
 	}
 
 	@ReactProp(name = "cancelTouchWhenOutside", defaultBoolean = false)

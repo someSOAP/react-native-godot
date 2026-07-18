@@ -82,7 +82,14 @@ void LibGodot::initialize(JNIEnv *env, jobject p_asset_manager, jobject p_net_ut
 
 ANativeWindow *LibGodot::get_main_surface() {
 	std::lock_guard<std::recursive_mutex> lock(windowMapMutex);
-	return windowMap[""].surface;
+	ANativeWindow *surface = windowMap[""].surface;
+	// The window registry retains its own reference across Godot instances.
+	// Each instance must receive a separate reference because its teardown
+	// releases the native window it was started with.
+	if (surface) {
+		ANativeWindow_acquire(surface);
+	}
+	return surface;
 }
 
 int LibGodot::get_main_width() {
@@ -147,12 +154,19 @@ JNIEnv *LibGodot::get_jni_env() {
 	return env;
 }
 
-static std::function<void()> createUpdateWindowFunc(std::string p_window_name, int p_width, int p_height, ANativeWindow *p_window_surface, bool p_change_surface, bool p_transparent) {
-	return [p_window_name, p_width, p_height, p_window_surface, p_change_surface, p_transparent]() {
+static std::function<void()> createUpdateWindowFunc(std::string p_window_name, int p_width, int p_height, ANativeWindow *p_window_surface, bool p_transparent) {
+	return [p_window_name, p_width, p_height, p_window_surface, p_transparent]() {
 		godot::DisplayServerEmbedded *dse = godot::DisplayServerEmbedded::get_singleton();
 		int32_t windowId = -1;
+		godot::Window *window = nullptr;
 		if (p_window_name == "") {
-			// Default id
+			godot::MainLoop *main_loop = godot::Engine::get_singleton()->get_main_loop();
+			godot::SceneTree *scene_tree = godot::Object::cast_to<godot::SceneTree>(main_loop);
+			if (!scene_tree) {
+				LOGE("Unable to get SceneTree from Godot!");
+				return;
+			}
+			window = scene_tree->get_root();
 			windowId = 0;
 		} else {
 			// Find window
@@ -164,38 +178,31 @@ static std::function<void()> createUpdateWindowFunc(std::string p_window_name, i
 			}
 			godot::Node *node = sceneTree->get_root()->find_child(
 					godot::String::utf8(p_window_name.c_str()), true, false);
-			godot::Window *newWindow = godot::Object::cast_to<godot::Window>(node);
+			window = godot::Object::cast_to<godot::Window>(node);
+			if (window) {
+				windowId = window->get_window_id();
+			}
+		}
+		// The default window's EGL surface cannot be replaced safely after Godot
+		// starts (some drivers return EGL_BAD_ALLOC). RTNGodotView therefore waits
+		// for its TextureView surface before creating the instance. Subwindows can
+		// still replace their native surface at runtime.
+		if (window && !p_window_name.empty()) {
+			bool change_surface = true;
+			godot::Ref<godot::RenderingNativeSurfaceAndroid> native_surface = window->get_native_surface();
+			if (native_surface.is_valid()) {
+				change_surface = (ANativeWindow *)native_surface->get_window() != p_window_surface;
+			}
 
-			if (newWindow) {
-				bool change_surface = true;
-				godot::Ref<godot::RenderingNativeSurfaceAndroid> ns = newWindow->get_native_surface();
-				if (ns.is_valid()) {
-					ANativeWindow *current_window = (ANativeWindow *)ns->get_window();
-					if (current_window == p_window_surface) {
-						change_surface = false;
-					}
-				}
-
-				if (change_surface) {
-					LOGI("Changing surface");
-					godot::Ref<godot::RenderingNativeSurfaceAndroid> androidSurface = godot::RenderingNativeSurfaceAndroid::create(
-							(uint64_t)p_window_surface, p_width, p_height);
-
-					newWindow->set_visible(true);
-					newWindow->set_native_surface(androidSurface);
-				}
-
-				windowId = newWindow->get_window_id();
+			if (change_surface) {
+				LOGI("Changing surface for window: %s", p_window_name.c_str());
+				godot::Ref<godot::RenderingNativeSurfaceAndroid> android_surface = godot::RenderingNativeSurfaceAndroid::create(
+						(uint64_t)p_window_surface, p_width, p_height);
+				window->set_visible(true);
+				window->set_native_surface(android_surface);
 			}
 		}
 		if (windowId >= 0) {
-			godot::MainLoop *main_loop = godot::Engine::get_singleton()->get_main_loop();
-			godot::SceneTree *scene_tree = godot::Object::cast_to<godot::SceneTree>(main_loop);
-			godot::Window *window = windowId == 0 && scene_tree ? scene_tree->get_root() : nullptr;
-			if (!window && scene_tree) {
-				godot::Node *node = scene_tree->get_root()->find_child(godot::String::utf8(p_window_name.c_str()), true, false);
-				window = godot::Object::cast_to<godot::Window>(node);
-			}
 			if (window) {
 				window->set_transparent_background(p_transparent);
 			}
@@ -221,22 +228,25 @@ void LibGodot::updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface
 	}
 
 	ANativeWindow *windowSurface = ANativeWindow_fromSurface(env, p_surface);
-	bool changeSurface = false;
+	if (!windowSurface) {
+		LOGE("Unable to obtain an Android surface for window: %s", windowName.c_str());
+		return;
+	}
+	ANativeWindow *previousSurface = nullptr;
+	bool keepWindowSurface = false;
 	{
 		std::lock_guard<std::recursive_mutex> lock(windowMapMutex);
 
 		if (!windowMap.contains(windowName)) {
 			windowMap[windowName] = WindowData(windowSurface, p_width, p_height, -1, p_transparent);
-			changeSurface = true;
+			keepWindowSurface = true;
 		}
 
 		WindowData &winData = windowMap[windowName];
 		if (winData.surface != windowSurface) {
-			changeSurface = true;
+			previousSurface = winData.surface;
 			winData.surface = windowSurface;
-		}
-		if (windowName == "" && changeSurface) {
-			LOGW("Default window surface should never change!");
+			keepWindowSurface = true;
 		}
 		winData.width = p_width;
 		winData.height = p_height;
@@ -244,7 +254,15 @@ void LibGodot::updateWindowNative(JNIEnv *env, jstring p_name, jobject p_surface
 	}
 	godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 	if (instance && instance->is_started()) {
-		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, p_width, p_height, windowSurface, changeSurface, p_transparent), true);
+		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, p_width, p_height, windowSurface, p_transparent), true);
+	}
+	if (previousSurface) {
+		ANativeWindow_release(previousSurface);
+	}
+	// ANativeWindow_fromSurface() acquires a reference even when it resolves to
+	// the same native window already stored in the registry.
+	if (!keepWindowSurface) {
+		ANativeWindow_release(windowSurface);
 	}
 }
 
@@ -258,7 +276,7 @@ void LibGodot::setWindowTransparentNative(JNIEnv *env, jstring p_name, jboolean 
 	data.transparent = p_transparent;
 	godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 	if (instance && instance->is_started()) {
-		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(window_name, data.width, data.height, data.surface, false, data.transparent), true);
+		GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(window_name, data.width, data.height, data.surface, data.transparent), true);
 	}
 }
 
@@ -319,7 +337,7 @@ void LibGodot::updateWindow(std::string windowName) {
 		godot::GodotInstance *instance = GodotModule::get_singleton()->get_instance();
 		WindowData &data = windowMap[windowName];
 		if (instance && instance->is_started()) {
-			GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, data.width, data.height, data.surface, windowName != "", data.transparent));
+			GodotModule::get_singleton()->runOnGodotThread(createUpdateWindowFunc(windowName, data.width, data.height, data.surface, data.transparent));
 		}
 	}
 }
@@ -332,8 +350,7 @@ void LibGodot::updateWindows() {
 			std::string windowName = item.first;
 			WindowData &data = item.second;
 			GodotModule::get_singleton()->runOnGodotThread(
-					createUpdateWindowFunc(windowName, data.width, data.height, data.surface,
-							windowName != "", data.transparent));
+					createUpdateWindowFunc(windowName, data.width, data.height, data.surface, data.transparent));
 		}
 	}
 }
